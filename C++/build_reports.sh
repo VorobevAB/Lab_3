@@ -21,11 +21,10 @@ gcovr --html-details coverage_boost.html --root .. --exclude '.*test_.*' --print
 cd ..
 
 echo "Catch2"
-mkdir -p build_catch
 cd build_catch
 g++ -std=c++17 -O0 --coverage -I.. ../tests/test_catch.cpp -o lab3_catch
 ./lab3_catch
-gcovr --html-details coverage_catch.html --root .. --exclude '.*test_.*' --print-summary
+gcovr --html-details coverage_catch.html --root .. --exclude '.*test_.*' --exclude '.*catch.*' --print-summary
 cd ..
 
 echo "Отчёты:"
