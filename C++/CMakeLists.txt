@@ -1,7 +1,0 @@
-find_package(benchmark QUIET)
-if (benchmark_FOUND)
-    add_executable(lab3_bench bench/bench.cpp)
-    target_include_directories(lab3_bench PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(lab3_bench PRIVATE benchmark::benchmark pthread)
-    target_compile_options(lab3_bench PRIVATE -O2)
-endif()
