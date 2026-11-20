@@ -1,3 +1,4 @@
+
 package structs
 
 import (
@@ -38,15 +39,56 @@ func TestArray(t *testing.T) {
 
 func TestForwardList(t *testing.T) {
 	fl := NewForwardList[int]()
-	fl.PushFront(2)
-	fl.PushFront(1)
-	fl.PushBack(3)
+
+	assert.Equal(t, 0, fl.FLen())
+
+	fl.FPUSH(2)
+	fl.FPUSH(1)
+	fl.FPUSHB(3)
+
+	assert.Equal(t, 3, fl.FLen())
+	assert.Equal(t, 1, fl.FFIND(1))
+	assert.Equal(t, -1, fl.FFIND(10))
+
+	assert.NoError(t, fl.FPUSH_AFTER(0, 5))
+	assert.Equal(t, 4, fl.FLen())
+	assert.Equal(t, 5, fl.Get(1))
+
+	assert.NoError(t, fl.FPUSH_BEFORE(0, 7))
+	assert.Equal(t, 7, fl.Get(0))
+
+	assert.Error(t, fl.FPUSH_AFTER(100, 10))
+	assert.Error(t, fl.FPUSH_BEFORE(100, 10))
+
+	assert.True(t, fl.FDEL_AT(1))
+	assert.Equal(t, 4, fl.FLen())
+
+	assert.True(t, fl.FDEL_AFTER(0))
+	assert.Equal(t, 3, fl.FLen())
+
+	assert.True(t, fl.FDEL_BEFORE(2))
+	assert.Equal(t, 2, fl.FLen())
+
+	assert.True(t, fl.FDELVAL(3))
+	assert.False(t, fl.FDELVAL(100))
+
+	fl.FPUSH(10)
+	fl.FPUSHB(20)
+
+	assert.True(t, fl.FDELNODE(10))
+	assert.False(t, fl.FDELNODE(100))
 
 	assert.True(t, fl.DelFront())
 	assert.True(t, fl.DelFront())
 	assert.True(t, fl.DelFront())
+	assert.False(t, fl.DelFront())
 
 	emptyFl := NewForwardList[int]()
+	assert.False(t, emptyFl.DelFront())
+
+	emptyFl.FPUSHB(1)
+	emptyFl.Clear()
+	assert.Equal(t, 0, emptyFl.FLen())
 	assert.False(t, emptyFl.DelFront())
 }
 
