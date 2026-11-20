@@ -1,7 +1,10 @@
+
 package structs
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"os"
 )
 
@@ -72,7 +75,10 @@ func (t *CompleteBinaryTree) SaveText(file string) error {
 			slice = append(slice, n.Value)
 		}
 	}
-	data, _ := json.Marshal(slice)
+	data, err := json.Marshal(slice)
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(file, data, 0644)
 }
 
@@ -88,6 +94,58 @@ func (t *CompleteBinaryTree) LoadText(file string) error {
 	t.Root, t.Size = nil, 0
 	for _, v := range slice {
 		t.Insert(v)
+	}
+	return nil
+}
+
+func (t *CompleteBinaryTree) SaveBin(file string) error {
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	size := int32(t.Size)
+	if err := binary.Write(f, binary.LittleEndian, size); err != nil {
+		return err
+	}
+
+	for i := 1; i <= t.Size; i++ {
+		node := t.getNode(i)
+		if node == nil {
+			return errors.New("invalid tree structure")
+		}
+		if err := binary.Write(f, binary.LittleEndian, int32(node.Value)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *CompleteBinaryTree) LoadBin(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var size int32
+	if err := binary.Read(f, binary.LittleEndian, &size); err != nil {
+		return err
+	}
+	if size < 0 {
+		return errors.New("invalid file size")
+	}
+
+	t.Root, t.Size = nil, 0
+
+	for i := int32(0); i < size; i++ {
+		var value int32
+		if err := binary.Read(f, binary.LittleEndian, &value); err != nil {
+			t.Root, t.Size = nil, 0
+			return err
+		}
+		t.Insert(int(value))
 	}
 	return nil
 }
