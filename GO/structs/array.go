@@ -1,3 +1,4 @@
+
 package structs
 
 import (
@@ -86,14 +87,23 @@ func (a *Array[T]) SaveBin(file string) error {
 	defer f.Close()
 
 	size := int32(len(a.data))
-	binary.Write(f, binary.LittleEndian, size)
+	if err := binary.Write(f, binary.LittleEndian, size); err != nil {
+		return err
+	}
 
-	for _, v := range a.data {
-		val, ok := any(v).(int)
-		if !ok {
-			return errors.New("binary serialization supports only int")
+	for _, value := range a.data {
+		switch v := any(value).(type) {
+		case int:
+			if err := binary.Write(f, binary.LittleEndian, int32(v)); err != nil {
+				return err
+			}
+		case int32:
+			if err := binary.Write(f, binary.LittleEndian, v); err != nil {
+				return err
+			}
+		default:
+			return errors.New("unsupported type for binary serialization")
 		}
-		binary.Write(f, binary.LittleEndian, int32(val))
 	}
 	return nil
 }
@@ -109,23 +119,37 @@ func (a *Array[T]) LoadBin(file string) error {
 	if err := binary.Read(f, binary.LittleEndian, &size); err != nil {
 		return err
 	}
+	if size < 0 {
+		return errors.New("invalid file size")
+	}
+
+	var zero T
+	typ := reflect.TypeOf(zero)
+	if typ == nil {
+		return errors.New("unsupported type")
+	}
 
 	a.Clear()
+
 	for i := int32(0); i < size; i++ {
-		var val int32
-		if err := binary.Read(f, binary.LittleEndian, &val); err != nil {
+		var value int32
+		if err := binary.Read(f, binary.LittleEndian, &value); err != nil {
+			a.Clear()
 			return err
 		}
 
-		var zero T
-		valTyp := reflect.TypeOf(zero)
-		if valTyp.Kind() == reflect.Int {
-			a.Push(any(int(val)).(T))
-		} else if valTyp.Kind() == reflect.Int32 {
-			a.Push(any(val).(T))
-		} else {
+		result := reflect.New(typ).Elem()
+
+		switch typ.Kind() {
+		case reflect.Int:
+			result.SetInt(int64(value))
+		case reflect.Int32:
+			result.SetInt(int64(value))
+		default:
 			return errors.New("unsupported type for binary serialization")
 		}
+
+		a.data = append(a.data, result.Interface().(T))
 	}
 	return nil
 }
