@@ -1,190 +1,313 @@
+
 #pragma once
-
-#include <fstream>
 #include <iostream>
+#include <fstream>
 
-using namespace std;
+template <typename T>
+class List {
+public:
+    struct Node {
+        T data;
+        Node* next;
+        Node* prev;
 
-template <typename T> class List {
+        Node(const T& value) : data(value), next(nullptr), prev(nullptr) {}
+    };
+
 private:
-  struct Node {
-    T value;
-    Node *next;
-    Node *prev;
-  };
-  Node *head;
-  Node *tail;
+    Node* head;
+    Node* tail;
 
 public:
-  List() {
-    head = nullptr;
-    tail = nullptr;
-  }
+    List() : head(nullptr), tail(nullptr) {}
 
-  List(const List &) = delete;
-  List &operator=(const List &) = delete;
+    ~List() {
+        clear();
+    }
 
-  bool LPUSH(const T &v) {
-    Node *n = new Node{v, head, nullptr};
-    if (head)
-      head->prev = n;
-    else
-      tail = n;
-    head = n;
-    return true;
-  }
+    Node* LHead() const {
+        return head;
+    }
 
-  bool LPUSHB(const T &v) {
-    Node *n = new Node{v, nullptr, tail};
-    if (tail)
-      tail->next = n;
-    else
-      head = n;
-    tail = n;
-    return true;
-  }
+    Node* LTail() const {
+        return tail;
+    }
 
-  bool LDEL() {
-    if (!head)
-      return false;
-    Node *p = head;
-    head = head->next;
-    if (head)
-      head->prev = nullptr;
-    else
-      tail = nullptr;
-    delete p;
-    return true;
-  }
+    bool contains(Node* node) const {
+        Node* current = head;
 
-  bool LDELBACK() {
-    if (!tail)
-      return false;
-    Node *p = tail;
-    tail = tail->prev;
-    if (tail)
-      tail->next = nullptr;
-    else
-      head = nullptr;
-    delete p;
-    return true;
-  }
+        while (current) {
+            if (current == node)
+                return true;
 
-  bool LDELVAL(const T &v) {
-    Node *p = head;
-    while (p && !(p->value == v))
-      p = p->next;
-    if (!p)
-      return false;
-    if (p->prev)
-      p->prev->next = p->next;
-    else
-      head = p->next;
-    if (p->next)
-      p->next->prev = p->prev;
-    else
-      tail = p->prev;
-    delete p;
-    return true;
-  }
+            current = current->next;
+        }
 
-  bool LFIND(const T &v) const {
-    for (Node *p = head; p; p = p->next)
-      if (p->value == v)
+        return false;
+    }
+
+    void LPUSH(const T& value) {
+        Node* node = new Node(value);
+
+        node->next = head;
+
+        if (head)
+            head->prev = node;
+        else
+            tail = node;
+
+        head = node;
+    }
+
+    void LPUSHB(const T& value) {
+        Node* node = new Node(value);
+
+        node->prev = tail;
+
+        if (tail)
+            tail->next = node;
+        else
+            head = node;
+
+        tail = node;
+    }
+
+    bool LPUSH_AFTER(Node* node, const T& value) {
+        if (!node || !contains(node))
+            return false;
+
+        if (node == tail) {
+            LPUSHB(value);
+            return true;
+        }
+
+        Node* newNode = new Node(value);
+
+        newNode->next = node->next;
+        newNode->prev = node;
+
+        node->next->prev = newNode;
+        node->next = newNode;
+
         return true;
-    return false;
-  }
+    }
 
-  int LLen() const {
-    int n = 0;
-    for (Node *p = head; p; p = p->next)
-      n++;
-    return n;
-  }
+    bool LPUSH_BEFORE(Node* node, const T& value) {
+        if (!node || !contains(node))
+            return false;
 
-  void LPRINT() const {
-    cout << "L[";
-    for (Node *p = head; p; p = p->next)
-      cout << p->value << " ";
-    cout << "]" << endl;
-  }
+        if (node == head) {
+            LPUSH(value);
+            return true;
+        }
 
-  void LPRINTR() const {
-    cout << "L[";
-    for (Node *p = tail; p; p = p->prev)
-      cout << p->value << " ";
-    cout << "]" << endl;
-  }
+        Node* newNode = new Node(value);
 
-  bool saveText(const char *file) const {
-    ofstream out(file);
-    if (!out)
-      return false;
-    out << LLen() << '\n';
-    for (Node *p = head; p; p = p->next)
-      out << p->value << '\n';
-    return !out.fail();
-  }
+        newNode->prev = node->prev;
+        newNode->next = node;
 
-  bool loadText(const char *file) {
-    ifstream in(file);
-    if (!in)
-      return false;
-    int n;
-    if (!(in >> n) || n < 0)
-      return false;
-    clear();
-    T value;
-    for (int i = 0; i < n; i++) {
-      if (!(in >> value)) {
-        clear();
+        node->prev->next = newNode;
+        node->prev = newNode;
+
+        return true;
+    }
+
+    bool LDEL() {
+        if (!head)
+            return false;
+
+        Node* temp = head;
+        head = head->next;
+
+        if (head)
+            head->prev = nullptr;
+        else
+            tail = nullptr;
+
+        delete temp;
+        return true;
+    }
+
+    bool LDELBACK() {
+        if (!tail)
+            return false;
+
+        Node* temp = tail;
+        tail = tail->prev;
+
+        if (tail)
+            tail->next = nullptr;
+        else
+            head = nullptr;
+
+        delete temp;
+        return true;
+    }
+
+    bool LDELNODE(Node* node) {
+        if (!node || !contains(node))
+            return false;
+
+        if (node == head)
+            return LDEL();
+
+        if (node == tail)
+            return LDELBACK();
+
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+
+        delete node;
+        return true;
+    }
+
+    bool LDEL_AFTER(Node* node) {
+        if (!node || !contains(node) || !node->next)
+            return false;
+
+        return LDELNODE(node->next);
+    }
+
+    bool LDEL_BEFORE(Node* node) {
+        if (!node || !contains(node) || !node->prev)
+            return false;
+
+        return LDELNODE(node->prev);
+    }
+
+    bool LDELVAL(const T& value) {
+        Node* current = head;
+
+        while (current) {
+            if (current->data == value)
+                return LDELNODE(current);
+
+            current = current->next;
+        }
+
         return false;
-      }
-      LPUSHB(value);
     }
-    return true;
-  }
 
-  bool saveBin(const char *file) const {
-    ofstream out(file, ios::binary);
-    if (!out)
-      return false;
-    int n = LLen();
-    out.write((char *)&n, sizeof(n));
-    for (Node *p = head; p; p = p->next)
-      out.write((char *)&p->value, sizeof(T));
-    return !out.fail();
-  }
+    Node* LFIND(const T& value) const {
+        Node* current = head;
 
-  bool loadBin(const char *file) {
-    ifstream in(file, ios::binary);
-    if (!in)
-      return false;
-    int n;
-    in.read((char *)&n, sizeof(n));
-    if (!in || n < 0 || n > 1000000)
-      return false;
-    clear();
-    for (int i = 0; i < n; i++) {
-      T value;
-      in.read((char *)&value, sizeof(T));
-      if (!in) {
+        while (current) {
+            if (current->data == value)
+                return current;
+
+            current = current->next;
+        }
+
+        return nullptr;
+    }
+
+    int LLen() const {
+        int count = 0;
+        Node* current = head;
+
+        while (current) {
+            count++;
+            current = current->next;
+        }
+
+        return count;
+    }
+
+    void LPRINT() const {
+        Node* current = head;
+
+        while (current) {
+            std::cout << current->data << " ";
+            current = current->next;
+        }
+
+        std::cout << std::endl;
+    }
+
+    void LPRINTR() const {
+        Node* current = tail;
+
+        while (current) {
+            std::cout << current->data << " ";
+            current = current->prev;
+        }
+
+        std::cout << std::endl;
+    }
+
+    void LPRINTREC(Node* node) const {
+        if (!node)
+            return;
+
+        std::cout << node->data << " ";
+        LPRINTREC(node->next);
+    }
+
+    void clear() {
+        while (head)
+            LDEL();
+    }
+
+    void SaveText(const char* filename) const {
+        std::ofstream file(filename);
+
+        Node* current = head;
+        while (current) {
+            file << current->data << '\n';
+            current = current->next;
+        }
+    }
+
+    void LoadText(const char* filename) {
+        std::ifstream file(filename);
+        if (!file)
+            return;
+
         clear();
-        return false;
-      }
-      LPUSHB(value);
-    }
-    return true;
-  }
 
-  void clear() {
-    while (head) {
-      Node *p = head;
-      head = head->next;
-      delete p;
+        T value;
+        while (file >> value)
+            LPUSHB(value);
     }
-    tail = nullptr;
-  }
 
-  ~List() { clear(); }
+    void SaveBin(const char* filename) const {
+        std::ofstream file(filename, std::ios::binary);
+        if (!file)
+            return;
+
+        int size = LLen();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+        Node* current = head;
+        while (current) {
+            file.write(reinterpret_cast<const char*>(&current->data), sizeof(T));
+            current = current->next;
+        }
+    }
+
+    void LoadBin(const char* filename) {
+        std::ifstream file(filename, std::ios::binary);
+        if (!file)
+            return;
+
+        clear();
+
+        int size;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        if (!file || size < 0)
+            return;
+
+        for (int i = 0; i < size; i++) {
+            T value;
+            file.read(reinterpret_cast<char*>(&value), sizeof(T));
+
+            if (!file) {
+                clear();
+                return;
+            }
+
+            LPUSHB(value);
+        }
+    }
 };
