@@ -1,7 +1,11 @@
+
 package structs
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 )
 
@@ -25,7 +29,7 @@ func NewHashTable() *HashTable {
 }
 
 func (h *HashTable) hash(key string) int {
-	var hash uint = 0
+	var hash uint
 	for i := 0; i < len(key); i++ {
 		hash = hash*31 + uint(key[i])
 	}
@@ -77,7 +81,10 @@ func (h *HashTable) SaveText(file string) error {
 			pairs = append(pairs, kvPair{Key: curr.Key, Value: curr.Value})
 		}
 	}
-	data, _ := json.Marshal(pairs)
+	data, err := json.Marshal(pairs)
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(file, data, 0644)
 }
 
@@ -93,6 +100,102 @@ func (h *HashTable) LoadText(file string) error {
 	h.table = [10]*hNode{}
 	for _, p := range pairs {
 		h.Insert(p.Key, p.Value)
+	}
+	return nil
+}
+
+func (h *HashTable) SaveBin(file string) error {
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var count int32
+	for i := 0; i < 10; i++ {
+		for curr := h.table[i]; curr != nil; curr = curr.Next {
+			count++
+		}
+	}
+
+	if err := binary.Write(f, binary.LittleEndian, count); err != nil {
+		return err
+	}
+
+	for i := 0; i < 10; i++ {
+		for curr := h.table[i]; curr != nil; curr = curr.Next {
+			key := []byte(curr.Key)
+			value := []byte(curr.Value)
+
+			if err := binary.Write(f, binary.LittleEndian, int32(len(key))); err != nil {
+				return err
+			}
+			if _, err := f.Write(key); err != nil {
+				return err
+			}
+
+			if err := binary.Write(f, binary.LittleEndian, int32(len(value))); err != nil {
+				return err
+			}
+			if _, err := f.Write(value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (h *HashTable) LoadBin(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var count int32
+	if err := binary.Read(f, binary.LittleEndian, &count); err != nil {
+		return err
+	}
+	if count < 0 {
+		return errors.New("invalid file size")
+	}
+
+	h.table = [10]*hNode{}
+
+	for i := int32(0); i < count; i++ {
+		var keySize int32
+		if err := binary.Read(f, binary.LittleEndian, &keySize); err != nil {
+			h.table = [10]*hNode{}
+			return err
+		}
+		if keySize < 0 {
+			h.table = [10]*hNode{}
+			return errors.New("invalid key size")
+		}
+
+		key := make([]byte, keySize)
+		if _, err := io.ReadFull(f, key); err != nil {
+			h.table = [10]*hNode{}
+			return err
+		}
+
+		var valueSize int32
+		if err := binary.Read(f, binary.LittleEndian, &valueSize); err != nil {
+			h.table = [10]*hNode{}
+			return err
+		}
+		if valueSize < 0 {
+			h.table = [10]*hNode{}
+			return errors.New("invalid value size")
+		}
+
+		value := make([]byte, valueSize)
+		if _, err := io.ReadFull(f, value); err != nil {
+			h.table = [10]*hNode{}
+			return err
+		}
+
+		h.Insert(string(key), string(value))
 	}
 	return nil
 }
